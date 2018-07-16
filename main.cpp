@@ -37,11 +37,6 @@ int main()
 
 
 
-	if (!r) {
-		cout << r << endl;
-		return 1;
-	}
-
 	cout << "density data:" << endl;
 	float *data = density_buf.map<float>();
 	for (int i=0;i<BLOCK_SIZE;++i){
@@ -56,6 +51,7 @@ int main()
 	cout << endl;
 	cout << endl;
 
+
 	cout << "tirs count:" << endl;
 	int *cnt = trin_buf.map<int>();
 	for (int i=0;i<BLOCK_SIZE-1;++i){
@@ -65,5 +61,45 @@ int main()
 		cout << cnt[i*(BLOCK_SIZE-1)*(BLOCK_SIZE-1) + j*(BLOCK_SIZE-1) + k] << " ";
 	}cout << endl;} cout << endl;}
 
+	for (int i=1;i<(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1);++i)
+		cnt[i] += cnt[i-1];
+	
+	int tris_all = cnt[(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1)-1]; (void)tris_all;
+
+	for (int i=1;i<(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1);++i)
+		cnt[i] -= cnt[0];
+	
+	cnt[0] = 0;
+
 	trin_buf.unMap();
+
+	cout << endl;
+	cout << endl;
+
+
+
+	cout << "tirs starts:" << endl;
+	cnt = trin_buf.map<int>();
+	for (int i=0;i<BLOCK_SIZE-1;++i){
+	for (int j=0;j<BLOCK_SIZE-1;++j){
+	for (int k=0;k<BLOCK_SIZE-1;++k)
+	{
+		cout << cnt[i*(BLOCK_SIZE-1)*(BLOCK_SIZE-1) + j*(BLOCK_SIZE-1) + k] << " ";
+	}cout << endl;} cout << endl;}
+
+	trin_buf.unMap();
+
+
+
+	fg::Buffer tris_buf;
+
+	r += tris_buf.setData<vec3>(nullptr,tris_all);
+
+
+
+	
+	if (!r) {
+		cout << r << endl;
+		return 1;
+	}
 }
