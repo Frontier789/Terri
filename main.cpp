@@ -4,7 +4,7 @@
 
 using namespace std;
 
-#define BLOCK_SIZE 5
+#define BLOCK_SIZE 17
 
 class App
 {
@@ -156,13 +156,18 @@ public:
 	void rotate(vec3 u,vec3 r,vec2 d) {
 		rotm = Quat(u,-d.x/80) * Quat(r,-d.y/80) * rotm;
 	}
+
+	void zoom(float am) {
+		rotm = MATRIX::scaling(vec3(am)) * rotm;
+	}
 };
 
-class Widget : public GuiElement, public ClickListener
+class Widget : public GuiElement, public ClickListener, public ScrollListener
 {
 public:
 	fm::Delegate<void,fg::ShaderManager &> ondraw; ///< Callback used when drawing
 	fm::Delegate<void,fm::vec2,fm::vec2> onmousemove; ///< Callback used when mouse moves
+	fm::Delegate<void,float> onscroll; ///< Callback used when scrolling happens
 
 	/////////////////////////////////////////////////////////////
 	/// @brief Default constructor
@@ -189,6 +194,14 @@ public:
 	/// 
 	/////////////////////////////////////////////////////////////
 	virtual void onMouseMove(fm::vec2 p,fm::vec2 prevP) override;
+		
+	/////////////////////////////////////////////////////////////
+	/// @brief Called when the element is scrolled
+	/// 
+	/// @param amount The amount the element is scrolled
+	/// 
+	/////////////////////////////////////////////////////////////
+	virtual void onScroll(float amount) override;
 };
 
 Widget::Widget(GuiContext &owner,fm::vec2 size) : GuiElement(owner,size) {}
@@ -205,6 +218,13 @@ void Widget::onMouseMove(fm::vec2 p,fm::vec2 prevP)
 {
 	ClickListener::onMouseMove(p,prevP);
 	onmousemove(p,prevP);
+}
+
+/////////////////////////////////////////////////////////////
+void Widget::onScroll(float amount)
+{
+	ScrollListener::onScroll(amount);
+	onscroll(amount);
 }
 
 int main()
@@ -238,6 +258,9 @@ int main()
 	w->onmousemove = [&](vec2 a,vec2 b) {
 		if (w->isPressed(Mouse::Left))
 			app.rotate(cam.u(),cam.r(),a-b);
+	};
+	w->onscroll = [&](float d) {
+		app.zoom(pow(1.3,d));
 	};
 	win.getMainLayout().addChildElement(w);
 

@@ -1,19 +1,19 @@
 #version 430
 
-#define BLOCK_SIZE 5
+#define BLOCK_SIZE 17
 
 layout (local_size_x = 1, local_size_y = 1) in;
 
 layout(std430, binding = 3) buffer gridLayout
 {
-	float grid[BLOCK_SIZE][BLOCK_SIZE][BLOCK_SIZE];
+	float grid[];
 };
 
 float density(vec3 p)
 {
 	p /= (BLOCK_SIZE - 1);
 
-	return length(p - vec3(.5)) - .3 + sin(p.x*7)*.05 + sin(p.y*5 + 7)*.05 + sin(p.z*4 + 2)*.1;
+	return min(-(length(p - vec3(.5)) - .3),length(p - vec3(.3)) - .3);
 }
 
 void main()
@@ -25,6 +25,6 @@ void main()
 
 		float d = density(p);
 
-		grid[index.x][index.y][i] = d;
+		grid[(index.x*BLOCK_SIZE + index.y)*BLOCK_SIZE + i] = d;
 	}
 }

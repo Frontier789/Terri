@@ -1,22 +1,22 @@
 #version 430
 
-#define BLOCK_SIZE 5
+#define BLOCK_SIZE 17
 
 layout (local_size_x = 1, local_size_y = 1) in;
 
 layout(std430, binding = 3) buffer gridLayout
 {
-	float grid[BLOCK_SIZE][BLOCK_SIZE][BLOCK_SIZE];
+	float grid[];
 };
 
 layout(std430, binding = 4) buffer trinLayout
 {
-	int trin[BLOCK_SIZE-1][BLOCK_SIZE-1][BLOCK_SIZE-1];
+	int trin[];
 };
 
 layout(std430, binding = 5) buffer trioffLayout
 {
-	int trioff[BLOCK_SIZE-1][BLOCK_SIZE-1][BLOCK_SIZE-1];
+	int trioff[];
 };
 
 layout(std430, binding = 6) buffer triposLayout
@@ -29,7 +29,7 @@ layout(std430, binding = 7) buffer triclrLayout
 	vec4 triclrs[];
 };
 
-#define grid_at(P) (grid[(P).x][(P).y][(P).z])
+#define grid_at(P) (grid[((P).x*BLOCK_SIZE + (P).y)*BLOCK_SIZE + (P).z])
 
 vec4 lin_interp(ivec3 A,ivec3 B)
 {
@@ -45,7 +45,7 @@ void buildTriangle(inout int base_tp,ivec3 p1,ivec3 p2,ivec3 p3,ivec3 p4)
 	triposes[base_tp + 1] = lin_interp(p1,p3);
 	triposes[base_tp + 2] = lin_interp(p1,p4);
 
-	vec3 c = vec3(triposes[base_tp + 0] + triposes[base_tp + 1] + triposes[base_tp + 2]);
+	vec3 c = vec3(triposes[base_tp + 0] + triposes[base_tp + 1] + triposes[base_tp + 2]) + vec3(.1);
 	c = normalize(c);
 
 	triclrs[base_tp + 0] = vec4(c,1);
@@ -107,9 +107,11 @@ void main()
 	ivec2 index = ivec2(gl_GlobalInvocationID.xy);
 	
 	for (int i=0;i<BLOCK_SIZE-1;++i) {
-		int base = trioff[index.x][index.y][i]*3;
+		int flat_index = (index.x * (BLOCK_SIZE-1) + index.y) * (BLOCK_SIZE-1) + i;
 
-		int n = trin[index.x][index.y][i]*3;
+		int base = trioff[flat_index]*3;
+
+		int n = trin[flat_index]*3;
 
 		tris_for_tetrahedron(base,ivec3(index,i),ivec3(0,0,1),ivec3(0,1,1));
 		tris_for_tetrahedron(base,ivec3(index,i),ivec3(0,1,1),ivec3(0,1,0));
