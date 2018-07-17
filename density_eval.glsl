@@ -11,7 +11,9 @@ layout(std430, binding = 3) buffer gridLayout
 
 float density(vec3 p)
 {
-	return length(p - vec3(.5)) - .5;
+	p /= (BLOCK_SIZE - 1);
+
+	return length(p - vec3(.5)) - .3 + sin(p.x*7)*.05 + sin(p.y*5 + 7)*.05 + sin(p.z*4 + 2)*.1;
 }
 
 void main()
@@ -19,7 +21,7 @@ void main()
 	ivec2 index = ivec2(gl_GlobalInvocationID.xy);
 	
 	for (int i=0;i<BLOCK_SIZE;++i) {
-		vec3 p = vec3(index,i) / (BLOCK_SIZE - 1);
+		vec3 p = vec3(index,i);
 
 		float d = density(p);
 
