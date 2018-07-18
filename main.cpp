@@ -4,8 +4,6 @@
 
 using namespace std;
 
-#define BLOCK_SIZE 17
-
 class App
 {
 	ComputeShader density_shader;
@@ -19,32 +17,75 @@ class App
 	Buffer tri_clr_buf;
 
 	int tris_count;
+	int blocksize;
 
 	mat4 rotm;
+
+	Texture noiseTex1;
+	ShaderManager shader;
 
 public:
 	Result r;
 
-	App() {
+	App() : blocksize(33) {
 		init();
 	}
 
 	void init() {
+		init_textures();
 		init_shaders();
 		init_buffers();
 		checkr();
+	}
+
+	void mulblocksize(float am) {
+		blocksize = max<int>(9,min<int>(blocksize*am,1025));
+		cout << blocksize << endl;
+		init_buffers();
+		checkr();
+		tess();
+	}
+
+	void init_textures() {
+		r += noiseTex1.loadFromFile("noise.jpg");
+		noiseTex1.setSmooth(true);
 	}
 
 	void init_shaders() {
 		r += density_shader.loadFromFile("density_eval.glsl");
 		r += trin_shader.loadFromFile("tris_count.glsl");
 		r += vert_shader.loadFromFile("tris_builder.glsl");
+
+		init_shader_params();
+
+		init_draw_shader();
+
+		if (r) cout << "shaders loaded" << endl;
+	}
+
+	void init_draw_shader() {
+		r += shader.loadFromFiles("vert.glsl","frag.glsl");
+		if (!r) {
+			cout << r << endl;
+			r = Result();
+		}
+	}
+
+	void init_shader_params() {
+		r += density_shader.setUniform("u_blocksize",blocksize);
+		r += trin_shader.setUniform("u_blocksize",blocksize);
+		r += vert_shader.setUniform("u_blocksize",blocksize);
 	}
 
 	void init_buffers() {
-		r += density_buf.setData((float*)nullptr,BLOCK_SIZE*BLOCK_SIZE*BLOCK_SIZE);
-		r += trioff_buf.setData((int*)nullptr,(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1));
-		r += trin_buf.setData((int*)nullptr,(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1));
+		init_shader_params();
+
+		r += density_buf.setData((float*)nullptr,blocksize*blocksize*blocksize);
+		r += trioff_buf.setData((int*)nullptr,(blocksize-1)*(blocksize-1)*(blocksize-1));
+		r += trin_buf.setData((int*)nullptr,(blocksize-1)*(blocksize-1)*(blocksize-1));
+		density_shader.setUniform("u_noise1",noiseTex1);
+
+		if (r) cout << "memory allocated" << endl;
 	}
 
 	void checkr() {
@@ -56,13 +97,13 @@ public:
 
 	void calc_density() {
 		r += density_shader.setStorageBuf(3,density_buf);
-		r += density_shader.dispatch(vec2(BLOCK_SIZE));
+		r += density_shader.dispatch(vec2(blocksize));
 	}
 
 	void calc_trin() {
 		r += trin_shader.setStorageBuf(3,density_buf);
 		r += trin_shader.setStorageBuf(4,trin_buf);
-		r += trin_shader.dispatch(vec2(BLOCK_SIZE-1));
+		r += trin_shader.dispatch(vec2(blocksize-1));
 	}
 
 	template<class T>
@@ -85,15 +126,15 @@ public:
 	}
 
 	void dump_density() {
-		dump_buf_3d<float>(density_buf,BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE,"density data");
+		dump_buf_3d<float>(density_buf,blocksize,blocksize,blocksize,"density data");
 	}
 
 	void dump_trin() {
-		dump_buf_3d<int>(trin_buf,BLOCK_SIZE-1,BLOCK_SIZE-1,BLOCK_SIZE-1,"tris count");
+		dump_buf_3d<int>(trin_buf,blocksize-1,blocksize-1,blocksize-1,"tris count");
 	}
 
 	void dump_trioff() {
-		dump_buf_3d<int>(trioff_buf,BLOCK_SIZE-1,BLOCK_SIZE-1,BLOCK_SIZE-1,"tris offset");
+		dump_buf_3d<int>(trioff_buf,blocksize-1,blocksize-1,blocksize-1,"tris offset");
 	}
 
 	void dump_verts() {
@@ -121,10 +162,10 @@ public:
 		int *off = trioff_buf.map<int>();
 		off[0] = 0;
 
-		for (int i=1;i<(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1);++i)
+		for (int i=1;i<(blocksize-1)*(blocksize-1)*(blocksize-1);++i)
 			off[i] = off[i-1] + cnt[i-1];
 		
-		tris_count = off[(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1)-1] + cnt[(BLOCK_SIZE-1)*(BLOCK_SIZE-1)*(BLOCK_SIZE-1)-1];
+		tris_count = off[(blocksize-1)*(blocksize-1)*(blocksize-1)-1] + cnt[(blocksize-1)*(blocksize-1)*(blocksize-1)-1];
 
 		trin_buf.unMap();
 		trioff_buf.unMap();
@@ -139,13 +180,13 @@ public:
 		r += vert_shader.setStorageBuf(5,trioff_buf);
 		r += vert_shader.setStorageBuf(6,tri_pos_buf);
 		r += vert_shader.setStorageBuf(7,tri_clr_buf);
-		r += vert_shader.dispatch(vec2(BLOCK_SIZE-1));
+		r += vert_shader.dispatch(vec2(blocksize-1));
 	}
 
-	void draw(ShaderManager &shader) {
+	void draw(ShaderManager &) {
 		DrawData dd;
 		dd.positions.set<vec4>(tri_pos_buf);
-		dd.colors.set<vec4>(tri_clr_buf);
+		dd.normals.set<vec4>(tri_clr_buf);
 
 		shader.getCamera().set3D(vec2(1280,1024),vec3(0,0,5),vec3());
 		shader.getModelStack().top(rotm);
@@ -153,12 +194,32 @@ public:
 		shader.draw(dd);
 	}
 
-	void rotate(vec3 u,vec3 r,vec2 d) {
+	void rotate(vec2 d) {
+		vec3 u = shader.getCamera().u();
+		vec3 r = shader.getCamera().r();
 		rotm = Quat(u,-d.x/80) * Quat(r,-d.y/80) * rotm;
 	}
 
 	void zoom(float am) {
 		rotm = MATRIX::scaling(vec3(am)) * rotm;
+	}
+
+	void tess() {
+		Clock clk;
+		calc_density();
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
+
+		calc_trin();
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
+
+		calc_trioff_cpu();
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
+		
+		create_tri_poses();
+		glFlush();
+
+		cout << "tessellation took " << clk.getSeconds()*1000 << "ms" << endl;
+		cout << "tris count " << tris_count << endl;
 	}
 };
 
@@ -168,6 +229,8 @@ public:
 	fm::Delegate<void,fg::ShaderManager &> ondraw; ///< Callback used when drawing
 	fm::Delegate<void,fm::vec2,fm::vec2> onmousemove; ///< Callback used when mouse moves
 	fm::Delegate<void,float> onscroll; ///< Callback used when scrolling happens
+	fm::Delegate<void,fw::Event> onevent; ///< Callback used when any event happens
+	fm::Delegate<void,fw::Keyboard::Key> onkeypress; ///< Callback used when a key is pressed
 
 	/////////////////////////////////////////////////////////////
 	/// @brief Default constructor
@@ -202,6 +265,16 @@ public:
 	/// 
 	/////////////////////////////////////////////////////////////
 	virtual void onScroll(float amount) override;
+
+	/////////////////////////////////////////////////////////////
+	/// @brief Handle an event
+	/// 
+	/// @param ev The event
+	/// 
+	/// @return True iff the event got handled
+	/// 
+	/////////////////////////////////////////////////////////////
+	virtual bool onEvent(fw::Event &ev) override;
 };
 
 Widget::Widget(GuiContext &owner,fm::vec2 size) : GuiElement(owner,size) {}
@@ -227,29 +300,28 @@ void Widget::onScroll(float amount)
 	onscroll(amount);
 }
 
+/////////////////////////////////////////////////////////////
+bool Widget::onEvent(fw::Event &ev)
+{
+	bool handled = GuiElement::onEvent(ev);
+	onevent(ev);
+
+	if (ev.type == Event::KeyPressed) {
+		onkeypress(ev.key.code);
+	}
+
+	return handled;
+}
+
 int main()
 {
 	GuiWindow win(vec2(1280,1024));
 	win.setClearColor(vec4::Black);
 	win.setDepthTest(LEqual);
-
-	App app;
 	cout << "init: ok" << endl;
 
-	app.calc_density();
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
-
-	app.calc_trin();
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
-
-	app.calc_trioff_cpu();
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
-	
-	app.create_tri_poses();
-
-	// app.dump_bufs();
-
-	Camera &cam = win.getShader().getCamera();
+	App app;
+	app.tess();
 
 	Widget *w = new Widget(win,win.getSize());
 	w->ondraw = [&](ShaderManager &shader) {
@@ -257,10 +329,27 @@ int main()
 	};
 	w->onmousemove = [&](vec2 a,vec2 b) {
 		if (w->isPressed(Mouse::Left))
-			app.rotate(cam.u(),cam.r(),a-b);
+			app.rotate(a-b);
 	};
 	w->onscroll = [&](float d) {
 		app.zoom(pow(1.3,d));
+	};
+	w->onevent = [&](Event ev) {
+		if (ev.type == Event::FocusGained) {
+			app.init_draw_shader();
+		}
+	};
+	w->onkeypress = [&](Keyboard::Key key) {
+		if (key == Keyboard::Plus) {
+			app.mulblocksize(1.2);
+		}
+		if (key == Keyboard::Minus) {
+			app.mulblocksize(1/1.2);
+		}
+		if (key == Keyboard::R) {
+			app.init_shaders();
+			app.tess();
+		}
 	};
 	win.getMainLayout().addChildElement(w);
 

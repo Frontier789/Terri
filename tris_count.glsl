@@ -1,8 +1,8 @@
 #version 430
 
-#define BLOCK_SIZE 17
+uniform int u_blocksize;
 
-layout (local_size_x = 1, local_size_y = 1) in;
+layout (local_size_x = 256, local_size_y = 1) in;
 
 layout(std430, binding = 3) buffer gridLayout
 {
@@ -14,7 +14,7 @@ layout(std430, binding = 4) buffer trinLayout
 	int trin[];
 };
 
-#define grid_at(P) (grid[((P).x*BLOCK_SIZE + (P).y)*BLOCK_SIZE + (P).z])
+#define grid_at(P) (grid[((P).x*u_blocksize + (P).y)*u_blocksize + (P).z])
 
 int process_tetrahedron(ivec3 base,ivec3 d1,ivec3 d2)
 {
@@ -28,10 +28,14 @@ int process_tetrahedron(ivec3 base,ivec3 d1,ivec3 d2)
 
 void main()
 {
-	ivec2 index = ivec2(gl_GlobalInvocationID.xy);
-	
-	for (int i=0;i<BLOCK_SIZE-1;++i) {
-		int flat_index = (index.x * (BLOCK_SIZE-1) + index.y) * (BLOCK_SIZE-1) + i;
+	ivec2 index = ivec2(gl_WorkGroupID.xy);
+	int size  = int(max(u_blocksize / gl_WorkGroupSize.x,1));
+	int loc   = int(gl_LocalInvocationID.x);
+	int start = int(size * loc);
+	int end   = int(min(start + size,u_blocksize-1));
+
+	for (int i=start;i<end;++i) {
+		int flat_index = (index.x * (u_blocksize-1) + index.y) * (u_blocksize-1) + i;
 
 		trin[flat_index] = 
 			process_tetrahedron(ivec3(index,i),ivec3(0,0,1),ivec3(0,1,1)) + 
