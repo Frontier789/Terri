@@ -33,6 +33,7 @@ void main()
 
 vec3 height_clr(float h)
 {
+	return vec3(1);
 	h = (h + .3) / .2;
 	if (h < .3) return mix(vec3(.2,.2,.5),vec3(.5,.5,.8),h/.3);
 	if (h < .6) return mix(vec3(.5,.5,.8),vec3(.2,.5,.3),(h-.3)/.2);

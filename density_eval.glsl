@@ -15,15 +15,38 @@ float height(vec2 p) {
     return texture(u_noise1,p).x;
 }
 
+float torus(vec3 p,float aoff,float s)
+{
+	p.xz = vec2(length(p.xz)/s,atan(p.z,p.x) + aoff);
+	p.xy -= vec2(.1,.5);
+	p.y /= s;
+
+	return length(p.xy)-.013;
+}
+
+float solenoid(vec3 p,float n,float aoff,float s)
+{
+	p.xz = vec2(length(p.xz)/s,atan(p.z,p.x) + aoff);
+	p.xy -= vec2(.1,.5);
+	p.y /= s;
+
+	p.z *= n;
+	p.xy = vec2(dot(vec2(cos(p.z),-sin(p.z)) , p.xy),
+				dot(vec2(sin(p.z), cos(p.z)) , p.xy));
+
+
+	return length(p.xy*vec2(1,.5)-vec2(.04,.0))-.013;
+}
+
 float density(vec3 p)
 {
 	p /= (u_blocksize - 1);
-/*
-	float M=15;
 
-	return sin(M*p.x + .5) + sin(M*p.y + 1) + sin(M*p.z + 3);*/
+	p -= vec3(.5,0,.5);
 
-	return (p.z - .5) + height(p.xy)*.003 + height(p.xy/10)*.03 + height(p.xy/40 + vec2(.1))*.12;
+	return min(min(solenoid(p,5,0,3),solenoid(p,5,1.9,3)),torus(p,0,3));
+
+	//return (p.z - .5) + height(p.xy)*.003 + height(p.xy/10)*.03 + height(p.xy/40 + vec2(.1))*.12;
 }
 
 void main()

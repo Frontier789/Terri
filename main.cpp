@@ -1,6 +1,8 @@
 #include <FRONTIER/OpenGL.hpp>
 #include <Frontier.hpp>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
@@ -188,7 +190,7 @@ public:
 		dd.positions.set<vec4>(tri_pos_buf);
 		dd.normals.set<vec4>(tri_clr_buf);
 
-		shader.getCamera().set3D(vec2(1280,1024),vec3(0,0,5),vec3());
+		shader.getCamera().set3D(vec2(640,480),vec3(0,0,5),vec3());
 		shader.getModelStack().top(rotm);
 
 		shader.draw(dd);
@@ -315,7 +317,7 @@ bool Widget::onEvent(fw::Event &ev)
 
 int main()
 {
-	GuiWindow win(vec2(1280,1024));
+	GuiWindow win(vec2(640,480));
 	win.setClearColor(vec4::Black);
 	win.setDepthTest(LEqual);
 	cout << "init: ok" << endl;
@@ -349,6 +351,17 @@ int main()
 		if (key == Keyboard::R) {
 			app.init_shaders();
 			app.tess();
+		}
+		if (key == Keyboard::Enter) {
+			Image img = win.capture();
+			for (int i=0;;++i) {
+				stringstream ss;
+				ss << "capture" << i << ".png";
+				if (!ifstream(ss.str())) {
+					img.saveToFile(ss.str());
+					break;
+				}
+			}
 		}
 	};
 	win.getMainLayout().addChildElement(w);
