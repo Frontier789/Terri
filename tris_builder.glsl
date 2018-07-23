@@ -31,59 +31,86 @@ layout(std430, binding = 7) buffer triclrLayout
 
 #define grid_at(P) (grid[((P).x*u_blocksize + (P).y)*u_blocksize + (P).z])
 
+float torus(vec3 p,float aoff,float s)
+{
+	p.xz = vec2(length(p.xz)/s,atan(p.z,p.x) + aoff);
+	p.xy -= vec2(.1,.5);
+	p.y /= s;
+
+	return length(p.xy)-.013;
+}
+
+float solenoid(vec3 p,float n,float aoff,float s)
+{
+	p.xz = vec2(length(p.xz)/s,atan(p.z,p.x) + aoff);
+	p.xy -= vec2(.1,.5);
+	p.y /= s;
+
+	p.z *= n;
+	p.xy = vec2(dot(vec2(cos(p.z),-sin(p.z)) , p.xy),
+				dot(vec2(sin(p.z), cos(p.z)) , p.xy));
+
+
+	return length(p.xy*vec2(1,.5)-vec2(.04,.0))-.013;
+}
+
+float density(vec3 p)
+{
+	p /= (u_blocksize - 1);
+
+	p -= vec3(.5,0,.5);
+
+	return min(min(solenoid(p,5,0,3),solenoid(p,5,1.9,3)),torus(p,0,3));
+
+	//return (p.z - .5) + height(p.xy)*.003 + height(p.xy/10)*.03 + height(p.xy/40 + vec2(.1))*.12;
+}
+
+
+vec4 normal_grid(vec4 P)
+{
+	float e = 1;
+	return
+		vec4(density(P.xyz+vec3(e,0,0))-density(P.xyz-vec3(e,0,0)),
+			 density(P.xyz+vec3(0,e,0))-density(P.xyz-vec3(0,e,0)),
+ 			 density(P.xyz+vec3(0,0,e))-density(P.xyz-vec3(0,0,e)),1);
+}
+
 vec4 lin_interp(ivec3 A,ivec3 B)
 {
 	float a = abs(grid_at(A));
 	float b = abs(grid_at(B));
 
-	return vec4(((A*b + B*a) / (a+b) - vec3(u_blocksize-1)/2)/u_blocksize*2,1);
-}
-
-vec3 normal(int base,int d1,int d2,int d3)
-{
-	vec3 A = vec3(triposes[base + d1]) - vec3(triposes[base + d2]);
-	vec3 B = vec3(triposes[base + d1]) - vec3(triposes[base + d3]);
-
-	vec3 n = normalize(cross(A,B));
-
-	return n;
+	return vec4((A*b + B*a) / (a+b),1);
 }
 
 void buildTriangle(inout int base_tp,ivec3 p1,ivec3 p2,ivec3 p3,ivec3 p4)
 {
-	triposes[base_tp + 0] = lin_interp(p1,p2);
-	triposes[base_tp + 1] = lin_interp(p1,p3);
-	triposes[base_tp + 2] = lin_interp(p1,p4);
+	triposes[base_tp + 0] = lin_interp(p1,p2)/u_blocksize*2 - 1;
+	triposes[base_tp + 1] = lin_interp(p1,p3)/u_blocksize*2 - 1;
+	triposes[base_tp + 2] = lin_interp(p1,p4)/u_blocksize*2 - 1;
 
-	vec3 c = normal(base_tp,0,1,2);
-
-	triclrs[base_tp + 0] = vec4(c,1);
-	triclrs[base_tp + 1] = vec4(c,1);
-	triclrs[base_tp + 2] = vec4(c,1);
+	triclrs[base_tp + 0] = normal_grid(lin_interp(p1,p2));
+	triclrs[base_tp + 1] = normal_grid(lin_interp(p1,p3));
+	triclrs[base_tp + 2] = normal_grid(lin_interp(p1,p4));
 
 	base_tp += 3;
 }
 
 void buildQuad(inout int base_tp,ivec3 p1,ivec3 p2,ivec3 p3,ivec3 p4)
 {
-	triposes[base_tp + 0] = lin_interp(p1,p3);
-	triposes[base_tp + 1] = lin_interp(p2,p3);
-	triposes[base_tp + 2] = lin_interp(p1,p4);
+	triposes[base_tp + 0] = lin_interp(p1,p3)/u_blocksize*2 - 1;
+	triposes[base_tp + 1] = lin_interp(p2,p3)/u_blocksize*2 - 1;
+	triposes[base_tp + 2] = lin_interp(p1,p4)/u_blocksize*2 - 1;
 	triposes[base_tp + 3] = triposes[base_tp + 2];
 	triposes[base_tp + 4] = triposes[base_tp + 1];
-	triposes[base_tp + 5] = lin_interp(p2,p4);
+	triposes[base_tp + 5] = lin_interp(p2,p4)/u_blocksize*2 - 1;
 
-	vec3 c = normal(base_tp,0,1,2);
-
-	triclrs[base_tp + 0] = vec4(c,1);
-	triclrs[base_tp + 1] = vec4(c,1);
-	triclrs[base_tp + 2] = vec4(c,1);
-
-	c = normal(base_tp,3,4,5);
-
-	triclrs[base_tp + 3] = vec4(c,1);
-	triclrs[base_tp + 4] = vec4(c,1);
-	triclrs[base_tp + 5] = vec4(c,1);
+	triclrs[base_tp + 0] = normal_grid(lin_interp(p1,p3));
+	triclrs[base_tp + 1] = normal_grid(lin_interp(p2,p3));
+	triclrs[base_tp + 2] = normal_grid(lin_interp(p1,p4));
+	triclrs[base_tp + 3] = normal_grid(lin_interp(p1,p4));
+	triclrs[base_tp + 4] = normal_grid(lin_interp(p2,p3));
+	triclrs[base_tp + 5] = normal_grid(lin_interp(p2,p4));
 
 	base_tp += 6;
 }
