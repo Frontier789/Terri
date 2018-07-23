@@ -16,12 +16,12 @@ layout(std430, binding = 4) buffer trinLayout
 
 #define grid_at(P) (grid[((P).x*u_blocksize + (P).y)*u_blocksize + (P).z])
 
-int process_tetrahedron(ivec3 base,ivec3 d1,ivec3 d2)
+int process_tetrahedron(float grid_base,float grid_d1,float grid_d2,float grid_1)
 {
-	int n = int(grid_at(base) < 0) + 
-			int(grid_at(base+d1) < 0) + 
-			int(grid_at(base+d2) < 0) + 
-			int(grid_at(base+ivec3(1)) < 0);
+	int n = int(grid_base < 0) + 
+			int(grid_d1   < 0) + 
+			int(grid_d2   < 0) + 
+			int(grid_1    < 0);
 
 	return 2-abs(n-2);
 }
@@ -37,12 +37,21 @@ void main()
 	for (int i=start;i<end;++i) {
 		int flat_index = (index.x * (u_blocksize-1) + index.y) * (u_blocksize-1) + i;
 
+		float grid_000 = grid_at(ivec3(index,i) + ivec3(0,0,0));
+		float grid_100 = grid_at(ivec3(index,i) + ivec3(1,0,0));
+		float grid_010 = grid_at(ivec3(index,i) + ivec3(0,1,0));
+		float grid_001 = grid_at(ivec3(index,i) + ivec3(0,0,1));
+		float grid_110 = grid_at(ivec3(index,i) + ivec3(1,1,0));
+		float grid_101 = grid_at(ivec3(index,i) + ivec3(1,0,1));
+		float grid_011 = grid_at(ivec3(index,i) + ivec3(0,1,1));
+		float grid_111 = grid_at(ivec3(index,i) + ivec3(1,1,1));
+
 		trin[flat_index] = 
-			process_tetrahedron(ivec3(index,i),ivec3(0,0,1),ivec3(0,1,1)) + 
-			process_tetrahedron(ivec3(index,i),ivec3(0,1,1),ivec3(0,1,0)) + 
-			process_tetrahedron(ivec3(index,i),ivec3(0,1,0),ivec3(1,1,0)) + 
-			process_tetrahedron(ivec3(index,i),ivec3(1,1,0),ivec3(1,0,0)) + 
-			process_tetrahedron(ivec3(index,i),ivec3(1,0,0),ivec3(1,0,1)) + 
-			process_tetrahedron(ivec3(index,i),ivec3(0,0,1),ivec3(1,0,1));
+			process_tetrahedron(grid_000,grid_001,grid_011,grid_111) + 
+			process_tetrahedron(grid_000,grid_011,grid_010,grid_111) + 
+			process_tetrahedron(grid_000,grid_010,grid_110,grid_111) + 
+			process_tetrahedron(grid_000,grid_110,grid_100,grid_111) + 
+			process_tetrahedron(grid_000,grid_100,grid_101,grid_111) + 
+			process_tetrahedron(grid_000,grid_101,grid_001,grid_111);
 	}
 }

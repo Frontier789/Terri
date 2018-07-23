@@ -54,9 +54,12 @@ public:
 	}
 
 	void init_shaders() {
+		Clock clk;
 		r += density_shader.loadFromFile("density_eval.glsl");
 		r += trin_shader.loadFromFile("tris_count.glsl");
 		r += vert_shader.loadFromFile("tris_builder.glsl");
+
+		cout << "Shader compilation took " << clk.s()*1000 << "ms" << endl;
 
 		init_shader_params();
 
@@ -74,9 +77,9 @@ public:
 	}
 
 	void init_shader_params() {
-		r += density_shader.setUniform("u_blocksize",blocksize);
-		r += trin_shader.setUniform("u_blocksize",blocksize);
-		r += vert_shader.setUniform("u_blocksize",blocksize);
+		density_shader.setUniform("u_blocksize",blocksize);
+		trin_shader.setUniform("u_blocksize",blocksize);
+		vert_shader.setUniform("u_blocksize",blocksize);
 	}
 
 	void init_buffers() {
