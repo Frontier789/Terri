@@ -223,6 +223,11 @@ public:
 		cout << "tessellation took " << clk.getSeconds()*1000 << "ms" << endl;
 		cout << "tris count " << tris_count << endl;
 	}
+
+	void set_time(Time t) {
+		density_shader.setUniform("u_time",float(t.asSecs()));
+		vert_shader.setUniform("u_time",float(t.asSecs()));
+	}
 };
 
 class Widget : public GuiElement, public ClickListener, public ScrollListener
@@ -233,6 +238,7 @@ public:
 	fm::Delegate<void,float> onscroll; ///< Callback used when scrolling happens
 	fm::Delegate<void,fw::Event> onevent; ///< Callback used when any event happens
 	fm::Delegate<void,fw::Keyboard::Key> onkeypress; ///< Callback used when a key is pressed
+	fm::Delegate<void> onupdate; ///< Callback used once every frame
 
 	/////////////////////////////////////////////////////////////
 	/// @brief Default constructor
@@ -277,6 +283,14 @@ public:
 	/// 
 	/////////////////////////////////////////////////////////////
 	virtual bool onEvent(fw::Event &ev) override;
+
+	/////////////////////////////////////////////////////////////
+	/// @brief update the gui element
+	/// 
+	/// @param dt The elapsed time since last update
+	/// 
+	/////////////////////////////////////////////////////////////
+	virtual void onUpdate(const fm::Time &dt) override;
 };
 
 Widget::Widget(GuiContext &owner,fm::vec2 size) : GuiElement(owner,size) {}
@@ -303,6 +317,13 @@ void Widget::onScroll(float amount)
 }
 
 /////////////////////////////////////////////////////////////
+void Widget::onUpdate(const fm::Time &dt)
+{
+	GuiElement::onUpdate(dt);
+	onupdate(dt);
+}
+
+/////////////////////////////////////////////////////////////
 bool Widget::onEvent(fw::Event &ev)
 {
 	bool handled = GuiElement::onEvent(ev);
@@ -324,6 +345,10 @@ int main()
 
 	App app;
 	app.tess();
+	app.set_time(Time::Zero);
+
+	bool realtime = false;
+	Clock rtclk(true);
 
 	Widget *w = new Widget(win,win.getSize());
 	w->ondraw = [&](ShaderManager &shader) {
@@ -350,6 +375,7 @@ int main()
 		}
 		if (key == Keyboard::R) {
 			app.init_shaders();
+			rtclk.restart();
 			app.tess();
 		}
 		if (key == Keyboard::Enter) {
@@ -362,6 +388,16 @@ int main()
 					break;
 				}
 			}
+		}
+		if (key == Keyboard::T) {
+			realtime = !realtime;
+			rtclk.togglePause();
+		}
+	};
+	w->onupdate = [&]() {
+		if (realtime) {
+			app.set_time(rtclk.getTime());
+			app.tess();
 		}
 	};
 	win.getMainLayout().addChildElement(w);

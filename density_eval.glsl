@@ -4,6 +4,8 @@ uniform int u_blocksize;
 
 uniform sampler2D u_noise1;
 
+uniform float u_time;
+
 layout (local_size_x = 256, local_size_y = 1) in;
 
 layout(std430, binding = 3) buffer gridLayout
@@ -30,12 +32,12 @@ float solenoid(vec3 p,float n,float aoff,float s)
 	p.xy -= vec2(.1,.5);
 	p.y /= s;
 
-	p.z *= n;
+	p.z *= sin(u_time)*5 + 5;
 	p.xy = vec2(dot(vec2(cos(p.z),-sin(p.z)) , p.xy),
 				dot(vec2(sin(p.z), cos(p.z)) , p.xy));
 
 
-	return length(p.xy*vec2(1,.5)-vec2(.04,.0))-.013;
+	return length(p.xy-vec2(.04,.0))-.013;
 }
 
 float density(vec3 p)
