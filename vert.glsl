@@ -23,7 +23,7 @@ vec3 height_clr(float h);
 
 void main()
 {
-	va_nrm = vec3(u_normMat * vec4(vec3(1,0,0),0));
+	va_nrm = vec3(u_normMat * vec4(in_nrm,0));
 	
 	gl_Position = u_projMat * u_viewMat * u_modelMat * vec4(in_pos,1.0);
 }

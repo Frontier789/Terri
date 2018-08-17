@@ -13,6 +13,4 @@ void main()
 	float dp = max(dot(sun_dir,n),0.1);
 	
 	out_clr = vec4(vec3(dp),1);
-	
-	out_clr = vec4(n,1);
 }

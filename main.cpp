@@ -11,12 +11,13 @@ class App
 	ComputeShader density_shader;
 	ComputeShader trin_shader;
 	ComputeShader vert_shader;
+	ComputeShader norm_shader;
 
 	Buffer density_buf;
 	Buffer trioff_buf;
 	Buffer trin_buf;
 	Buffer tri_pos_buf;
-	Buffer tri_clr_buf;
+	Buffer tri_nrm_buf;
 
 	int tris_count;
 	int blocksize;
@@ -58,6 +59,7 @@ public:
 		r += density_shader.loadFromFile("density_eval.glsl");
 		r += trin_shader.loadFromFile("tris_count.glsl");
 		r += vert_shader.loadFromFile("tris_builder.glsl");
+		r += norm_shader.loadFromFile("nrm_calc.glsl");
 
 		cout << "Shader compilation took " << clk.s()*1000 << "ms" << endl;
 
@@ -142,6 +144,18 @@ public:
 		dump_buf_3d<int>(trioff_buf,blocksize-1,blocksize-1,blocksize-1,"tris offset");
 	}
 
+	void dump_trinrm() {
+		vec4 *data = tri_nrm_buf.map<vec4>();
+		cout << "vert norms:" << endl;
+		for (int i=0;i<tris_count*3;++i) {
+			cout << i << ".: " << data[i] << endl;
+		}
+
+		tri_nrm_buf.unMap();
+		
+		cout << endl;
+	}
+
 	void dump_verts() {
 		vec4 *data = tri_pos_buf.map<vec4>();
 		cout << "vert poses:" << endl;
@@ -158,6 +172,8 @@ public:
 		dump_density();
 		dump_trin();
 		dump_trioff();
+		dump_trinrm();
+		dump_verts();
 
 		cout << "tris count: " << tris_count << endl;
 	}
@@ -179,19 +195,23 @@ public:
 
 	void create_tri_poses() {
 		tri_pos_buf.setData<vec4>(nullptr,tris_count*3);
-		tri_clr_buf.setData<vec4>(nullptr,tris_count*3);
+		tri_nrm_buf.setData<vec4>(nullptr,tris_count*3);
 		r += vert_shader.setStorageBuf(3,density_buf);
 		r += vert_shader.setStorageBuf(4,trin_buf);
 		r += vert_shader.setStorageBuf(5,trioff_buf);
 		r += vert_shader.setStorageBuf(6,tri_pos_buf);
-		r += vert_shader.setStorageBuf(7,tri_clr_buf);
 		r += vert_shader.dispatch(vec2(blocksize-1));
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+		
+		r += norm_shader.setStorageBuf(6,tri_pos_buf);
+		r += norm_shader.setStorageBuf(7,tri_nrm_buf);
+		r += norm_shader.dispatch(vec3(tris_count,1,1));
 	}
 
 	void draw(ShaderManager &) {
 		DrawData dd;
 		dd.positions.set<vec4>(tri_pos_buf);
-		dd.normals.set<vec4>(tri_clr_buf);
+		dd.normals.set<vec4>(tri_nrm_buf);
 
 		shader.getCamera().set3D(vec2(640,480),vec3(0,0,5),vec3());
 		shader.getModelStack().top(rotm);
@@ -395,6 +415,9 @@ int main()
 		if (key == Keyboard::T) {
 			realtime = !realtime;
 			rtclk.togglePause();
+		}
+		if (key == Keyboard::D) {
+			app.dump_bufs();
 		}
 	};
 	w->onupdate = [&]() {
