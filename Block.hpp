@@ -3,12 +3,14 @@
 
 #include <Frontier.hpp>
 
-class Block
+class Block : NonCopyable
 {
-	ComputeShader density_shader;
-	ComputeShader trin_shader;
-	ComputeShader vert_shader;
-	ComputeShader norm_shader;
+	ComputeShader &density_shader;
+	ComputeShader &trin_shader;
+	ComputeShader &vert_shader;
+	ComputeShader &norm_shader;
+	ShaderManager &shader;
+	Texture &noiseTex1;
 
 	Buffer density_buf;
 	Buffer trioff_buf;
@@ -21,21 +23,28 @@ class Block
 
 	mat4 rotm;
 
-	Texture noiseTex1;
-	ShaderManager shader;
-	
 	int log_level;
+
+	vec3 offset;
 
 public:
 	Result r;
 
-	Block(int log_lvl = 1);
+	Block(int log_lvl,
+		  ComputeShader &density_shader,
+		  ComputeShader &trin_shader,
+		  ComputeShader &vert_shader,
+		  ComputeShader &norm_shader,
+		  ShaderManager &shader,
+		  Texture &noiseTex1);
+	
+	Block(Block &&mv);
+	
 	void init();
 
+	void set_offset(vec3 p);
+
 	void mulblocksize(float am);
-	void init_textures();
-	void init_shaders();
-	void init_draw_shader();
 	void init_shader_params();
 	void init_buffers();
 	
@@ -60,7 +69,6 @@ public:
 	void rotate(vec2 d);
 	void zoom(float am);
 	void tess();
-	void set_time(Time t);
 };
 
 #endif

@@ -7,13 +7,53 @@
 
 using namespace std;
 
-Block::Block(int log_lvl) : blocksize(33), log_level(log_lvl) {
+Block::Block(Block &&mv) : 
+	density_shader(mv.density_shader),
+	trin_shader(mv.trin_shader),
+	vert_shader(mv.vert_shader),
+	norm_shader(mv.norm_shader),
+	shader(mv.shader),
+	noiseTex1(mv.noiseTex1),
+	density_buf(std::move(mv.density_buf)),
+	trioff_buf(std::move(mv.trioff_buf)),
+	trin_buf(std::move(mv.trin_buf)),
+	tri_pos_buf(std::move(mv.tri_pos_buf)),
+	tri_nrm_buf(std::move(mv.tri_nrm_buf)),
+	tris_count(mv.tris_count),
+	blocksize(mv.blocksize),
+	rotm(mv.rotm),
+	log_level(mv.log_level),
+	offset(mv.offset)
+{
+
+}
+
+Block::Block(int log_lvl,
+	         ComputeShader &density_shader,
+	         ComputeShader &trin_shader,
+	         ComputeShader &vert_shader,
+	         ComputeShader &norm_shader,
+	         ShaderManager &shader,
+	         Texture &noiseTex1) : 
+	density_shader(density_shader),
+	trin_shader(trin_shader),
+	vert_shader(vert_shader),
+	norm_shader(norm_shader),
+	shader(shader),
+	noiseTex1(noiseTex1),
+	blocksize(33),
+	log_level(log_lvl)
+{
 	init();
 }
 
+void Block::set_offset(vec3 p)
+{
+	offset = p;
+	tess();
+}
+
 void Block::init() {
-	init_textures();
-	init_shaders();
 	init_buffers();
 	checkr();
 }
@@ -25,35 +65,6 @@ void Block::mulblocksize(float am) {
 	checkr();
 	tess();
 	if (log_level > 1) cout << endl;
-}
-
-void Block::init_textures() {
-	r += noiseTex1.loadFromFile("noise.jpg");
-	noiseTex1.setSmooth(true);
-}
-
-void Block::init_shaders() {
-	Clock clk;
-	r += density_shader.loadFromFile("density_eval.glsl");
-	r += trin_shader.loadFromFile("tris_count.glsl");
-	r += vert_shader.loadFromFile("tris_builder.glsl");
-	r += norm_shader.loadFromFile("nrm_calc.glsl");
-
-	if (log_level > 1) cout << "Shader compilation took " << clk.s()*1000 << "ms" << endl;
-
-	init_shader_params();
-
-	init_draw_shader();
-
-	if (log_level > 1) if (r) cout << "shaders loaded" << endl;
-}
-
-void Block::init_draw_shader() {
-	r += shader.loadFromFiles("vert.glsl","frag.glsl");
-	if (!r) {
-		if (log_level > 0) cout << r << endl;
-		r = Result();
-	}
 }
 
 void Block::init_shader_params() {
@@ -81,14 +92,19 @@ void Block::checkr() {
 }
 
 void Block::calc_density() {
+	density_shader.setUniform("u_offset",offset);
 	r += density_shader.setStorageBuf(3,density_buf);
 	r += density_shader.dispatch(vec2(blocksize));
+
+	checkr();
 }
 
 void Block::calc_trin() {
 	r += trin_shader.setStorageBuf(3,density_buf);
 	r += trin_shader.setStorageBuf(4,trin_buf);
 	r += trin_shader.dispatch(vec2(blocksize-1));
+
+	checkr();
 }
 
 template<class T>
@@ -184,6 +200,8 @@ void Block::create_tri_poses() {
 void Block::create_normals() {
 	tri_nrm_buf.setData<vec4>(nullptr,tris_count*3);
 	
+	if (tris_count == 0) return;
+
 	int onec = pow(tris_count,.333);
 	
 	r += norm_shader.setStorageBuf(6,tri_pos_buf);
@@ -196,9 +214,9 @@ void Block::draw(ShaderManager &) {
 	dd.positions.set<vec4>(tri_pos_buf);
 	dd.normals.set<vec4>(tri_nrm_buf);
 
-	shader.getCamera().set3D(vec2(640,480),vec3(0,0,5),vec3());
 	shader.getModelStack().top(rotm);
 
+	shader.setUniform("u_offset",offset);
 	shader.draw(dd);
 }
 
@@ -212,50 +230,49 @@ void Block::zoom(float am) {
 	rotm = MATRIX::scaling(vec3(am)) * rotm;
 }
 
+Time do_log(bool log,TimeQuery &tq,string task)
+{
+	if (!log) return Time::Zero;
+
+	tq.stop();
+	Time t = tq.getTime();
+	cout << task << " calculated, took " << t.ms() << "ms" << endl;
+	tq.start();
+
+	return t;
+}
+
 void Block::tess() {
-	Clock clk,all_clk;
+	TimeQuery tq;
+	Time alltime;
 	
+	bool use_query = log_level > 1;
+
+	if (use_query)
+		tq.start();
+
 	calc_density();
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
-	if (log_level > 1) {
-		glFinish();
-		cout << "density values calculated, took " << clk.getSeconds()*1000 << "ms" << endl; clk.restart();
-	}
+	alltime += do_log(use_query, tq, "density values");
 
 	calc_trin();
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
-	if (log_level > 1) {
-		glFinish();
-		cout << "triangle numbers calculated, took " << clk.getSeconds()*1000 << "ms" << endl; clk.restart();
-	}
+	alltime += do_log(use_query, tq, "triangle numbers");
 
 	calc_trioff_cpu();
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT); // yay
-	if (log_level > 1) {
-		glFinish();
-		cout << "triangle offsets generated, took " << clk.getSeconds()*1000 << "ms" << endl; clk.restart();
-	}
+	alltime += do_log(use_query, tq, "triangle offsets");
 	
 	create_tri_poses();
-	if (log_level > 1) {
-		glFinish();
-		cout << "triangle positions generated, took " << clk.getSeconds()*1000 << "ms" << endl; clk.restart();
-	}
+	alltime += do_log(use_query, tq, "triangle positions");
 	
 	create_normals();
-	if (log_level > 1) {
-		glFinish();
-		cout << "triangle normals generated, took " << clk.getSeconds()*1000 << "ms" << endl; clk.restart();
-	}
+	alltime += do_log(use_query, tq, "triangle normals");
 	
-	if (log_level > 1) {
-		glFinish();
-		cout << "tessellation took " << all_clk.getSeconds()*1000 << "ms" << endl;
+	tq.stop();
+	
+	if (use_query) {
+		cout << "tessellation took " << alltime.ms() << "ms" << endl;
 		cout << "tris count " << tris_count << endl;
 	}
-}
-
-void Block::set_time(Time t) {
-	density_shader.setUniform("u_time",float(t.asSecs()));
-	vert_shader.setUniform("u_time",float(t.asSecs()));
 }

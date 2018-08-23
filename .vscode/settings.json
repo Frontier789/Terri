@@ -12,6 +12,11 @@
         "deque": "cpp",
         "vector": "cpp",
         "unordered_map": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "*.tcc": "cpp",
+        "dont_include_inl_begin": "cpp",
+        "dont_include_inl_end": "cpp",
+        "functional": "cpp",
+        "hash_map": "cpp"
     }
 }

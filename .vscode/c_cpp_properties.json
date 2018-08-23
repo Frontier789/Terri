@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/../tdk/flib11/include"
+                "${workspaceFolder}/../tdk/flib11/include",
+                "/home/frontier/Projects/Flib/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

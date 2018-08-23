@@ -14,6 +14,8 @@ uniform mat4 FRONTIER_VIEW   u_viewMat;
 uniform mat4 FRONTIER_PROJ   u_projMat;
 uniform float FRONTIER_SECONDS u_secs;
 
+uniform vec3 u_offset;
+
 in vec3 FRONTIER_POS    in_pos;
 in vec3 FRONTIER_NRM    in_nrm;
 
@@ -25,5 +27,5 @@ void main()
 {
 	va_nrm = vec3(u_normMat * vec4(in_nrm,0));
 	
-	gl_Position = u_projMat * u_viewMat * u_modelMat * vec4(in_pos,1.0);
+	gl_Position = u_projMat * u_viewMat * u_modelMat * vec4(in_pos + u_offset,1.0);
 }

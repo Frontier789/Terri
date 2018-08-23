@@ -1,10 +1,8 @@
 #version 430
 
+uniform vec3 u_offset;
 uniform int u_blocksize;
-
 uniform sampler2D u_noise1;
-
-uniform float u_time;
 
 layout (local_size_x = 256, local_size_y = 1) in;
 
@@ -46,7 +44,12 @@ float density(vec3 p)
 
 	p -= vec3(.5,0,.5);
 
-	return min(min(solenoid(p,5,0,3),solenoid(p,5,1.9,3)),torus(p,0,3));
+
+	p *= 2;
+	p += u_offset;
+	return p.y + texture(u_noise1, p.xz/2).x*.25 + texture(u_noise1, p.xz/4).x*.5 + texture(u_noise1, mat2(.7,.2,-.2,.7) * p.xz/8).x;
+
+	//return min(min(solenoid(p,5,0,3),solenoid(p,5,1.9,3)),torus(p,0,3));
 
 	//return (p.z - .5) + height(p.xy)*.003 + height(p.xy/10)*.03 + height(p.xy/40 + vec2(.1))*.12;
 }
