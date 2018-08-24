@@ -11,8 +11,9 @@ class BlockFactory
 	ComputeShader vert_shader;
 	ComputeShader norm_shader;
 
+
 	ShaderManager shader;
-	Texture noiseTex1;
+	Texture3D noiseTex1;
 	int log_level;
 public:
 

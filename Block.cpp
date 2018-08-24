@@ -34,7 +34,7 @@ Block::Block(int log_lvl,
 	         ComputeShader &vert_shader,
 	         ComputeShader &norm_shader,
 	         ShaderManager &shader,
-	         Texture &noiseTex1) : 
+	         Texture3D &noiseTex1) : 
 	density_shader(density_shader),
 	trin_shader(trin_shader),
 	vert_shader(vert_shader),
@@ -79,7 +79,7 @@ void Block::init_buffers() {
 	r += density_buf.setData((float*)nullptr,blocksize*blocksize*blocksize);
 	r += trioff_buf.setData((int*)nullptr,(blocksize-1)*(blocksize-1)*(blocksize-1));
 	r += trin_buf.setData((int*)nullptr,(blocksize-1)*(blocksize-1)*(blocksize-1));
-	density_shader.setUniform("u_noise1",noiseTex1);
+	r += density_shader.setUniform("u_noise1",noiseTex1);
 
 	if (log_level > 1) if (r) cout << "block memory allocated" << endl;
 }

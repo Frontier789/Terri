@@ -10,7 +10,7 @@ class Block : NonCopyable
 	ComputeShader &vert_shader;
 	ComputeShader &norm_shader;
 	ShaderManager &shader;
-	Texture &noiseTex1;
+	Texture3D &noiseTex1;
 
 	Buffer density_buf;
 	Buffer trioff_buf;
@@ -36,7 +36,7 @@ public:
 		  ComputeShader &vert_shader,
 		  ComputeShader &norm_shader,
 		  ShaderManager &shader,
-		  Texture &noiseTex1);
+		  Texture3D &noiseTex1);
 	
 	Block(Block &&mv);
 	

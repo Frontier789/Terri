@@ -21,15 +21,13 @@ Block BlockFactory::createBlock()
 }
 
 Result BlockFactory::init_textures() {
-	Image img(vec2(16));
-
 	srand(time(0));
-	img.forEach([&](vec2,Color &c) {
 
-		c.rgb() = vec3(rand()%256);
-	});
+	Color clr[16*16*16];
+	C(16*16*16) clr[i].rgb() = vec3(rand()%256,rand()%256,rand()%256);
 
-	Result r = noiseTex1.loadFromImage(img);
+	Result r = noiseTex1.loadFromMemory(vec3s(16),clr);
+
 	noiseTex1.setSmooth(true);
 	noiseTex1.setRepeated(true);
 	return r;
