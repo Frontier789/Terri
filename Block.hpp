@@ -5,12 +5,12 @@
 
 class Block : NonCopyable
 {
-	ComputeShader &density_shader;
-	ComputeShader &trin_shader;
-	ComputeShader &vert_shader;
-	ComputeShader &norm_shader;
-	ShaderManager &shader;
-	Texture3D &noiseTex1;
+	ComputeShader *density_shader;
+	ComputeShader *trin_shader;
+	ComputeShader *vert_shader;
+	ComputeShader *norm_shader;
+	ShaderManager *shader;
+	Texture3D *noiseTex1;
 
 	Buffer density_buf;
 	Buffer trioff_buf;
@@ -39,6 +39,8 @@ public:
 		  Texture3D &noiseTex1);
 	
 	Block(Block &&mv);
+
+	Block &operator=(Block &&mv);
 	
 	void init();
 
@@ -69,6 +71,8 @@ public:
 	void rotate(vec2 d);
 	void zoom(float am);
 	void tess();
+
+	fm::Size get_tris_count() const;
 };
 
 #endif

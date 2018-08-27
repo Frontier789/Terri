@@ -18,22 +18,19 @@ int main()
 	factory.init();
 
 	Camera &cam = factory.getCam();
+	float flyspeed = 1;
 
 	cam.set3D(vec2(640,480),vec3(0,0,5),vec3());
 
-	vector<Block> blocks;
-	for (int x=-3;x<3;++x) {
-	for (int y=-3;y<3;++y) {
-	for (int z=-3;z<3;++z) {
-		blocks.emplace_back(factory.createBlock());
-		blocks.back().set_offset(vec3(x*2,y*2,z*2));
-	}}}
+	auto sorter = [](vec3 a,vec3 b) {if (a.x != b.x) return a.x<b.x;if (a.y != b.y) return a.y<b.y;return a.z<b.z;};
+
+	map<vec3i,Block*,decltype(sorter)> blocks(sorter);
 
 	map<Keyboard::Key,bool> key_pressed;
 
 	Widget *w = new Widget(win,win.getSize());
 	w->ondraw = [&](ShaderManager &shader) {
-		for (auto &block : blocks) block.draw(shader);
+		for (auto &block : blocks) block.second->draw(shader);
 	};
 	w->onmousemove = [&](vec2 a,vec2 b) {
 		if (w->isPressed(Mouse::Left)) {
@@ -42,7 +39,7 @@ int main()
 		}
 	};
 	w->onscroll = [&](float d) {
-		for (auto &block : blocks) block.zoom(pow(1.3,d));
+		for (auto &block : blocks) block.second->zoom(pow(1.3,d));
 	};
 	w->onevent = [&](Event ev) {
 		if (ev.type == Event::FocusGained) {
@@ -51,16 +48,19 @@ int main()
 	};
 	w->onkeypress = [&](Keyboard::Key key) {
 		if (key == Keyboard::Plus) {
-			for (auto &block : blocks) block.mulblocksize(1.2);
+			for (auto &block : blocks) block.second->mulblocksize(1.2);
 		}
 		if (key == Keyboard::Minus) {
-			for (auto &block : blocks) block.mulblocksize(1/1.2);
+			for (auto &block : blocks) block.second->mulblocksize(1/1.2);
 		}
+		if (key == Keyboard::Q) flyspeed /= 1.5;
+		if (key == Keyboard::E) flyspeed *= 1.5;
+		
 		if (key == Keyboard::R) {
 			factory.init_shaders();
 			for (auto &block : blocks) {
-				block.init_buffers();
-				block.tess();
+				block.second->init_buffers();
+				block.second->tess();
 			}
 		}
 		if (key == Keyboard::Enter) {
@@ -91,10 +91,30 @@ int main()
 				dir += f*d.y + r*d.x + u*d.z;
 			}
 		}
-		cam.movePosition(dir * dt.s());
+		cam.movePosition(dir * dt.s() * flyspeed);
+
+		vec3 p = cam.getPosition();
+		vec3i k = vec3i((p+vec3(1))/2);
+		for (int x=-5;x<5;++x) 
+		for (int y=-5;y<5;++y) 
+		for (int z=-5;z<5;++z) {
+			vec3i s = k + vec3i(x,y,z);
+			if (blocks.find(s) == blocks.end()) {
+				blocks[s] = new Block(std::move(factory.createBlock()));
+				blocks[s]->set_offset(s*2);
+				if (blocks[s]->get_tris_count()) {
+					x = 5;
+					y = 5;
+					z = 5;
+				}
+			}
+		}
 	};
 
 	win.getMainLayout().addChildElement(w);
 
 	win.runGuiLoop();
+
+	for (auto block : blocks)
+		delete block.second;
 }

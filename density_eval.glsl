@@ -34,18 +34,30 @@ float solenoid(vec3 p,float n,float aoff,float s)
 	return length(p.xy*vec2(1,.5)-vec2(.04,.0))-.013;
 }
 
+vec4 noise(vec3 p)
+{
+	return texture(u_noise1, p)/255.0;
+}
+
 float density(vec3 p)
 {
 	p /= (u_blocksize - 1);
 
 	p -= vec3(.5,0,.5);
 
+	// return length(p*2 + u_offset) - 1.5 + texture(u_noise1, p*2).x/25500.0;
 
 	p *= 2;
 	p += u_offset;
-	return p.y + texture(u_noise1, p/8).x/255.0*400 + texture(u_noise1, p/2).x/255.0*100 + texture(u_noise1, p).x/255.0*50;
+	float s = sin(1.45);
+	float c = cos(1.45);
+	vec3 prot = mat3(c,0,-s,0,1,0,s,0,c)*p;
+	return p.y + noise(prot/8).x*400
+	           + noise(p/2).y*50
+			   + noise(p*1).z*20
+			   + noise(p*2).w*10;
 
-	//return min(min(solenoid(p,5,0,3),solenoid(p,5,1.9,3)),torus(p,0,3));
+	// return min(min(solenoid(p,5,0,3),solenoid(p,5,1.9,3)),torus(p,0,3));
 }
 
 void main()

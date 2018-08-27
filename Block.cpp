@@ -7,25 +7,38 @@
 
 using namespace std;
 
-Block::Block(Block &&mv) : 
-	density_shader(mv.density_shader),
-	trin_shader(mv.trin_shader),
-	vert_shader(mv.vert_shader),
-	norm_shader(mv.norm_shader),
-	shader(mv.shader),
-	noiseTex1(mv.noiseTex1),
-	density_buf(std::move(mv.density_buf)),
-	trioff_buf(std::move(mv.trioff_buf)),
-	trin_buf(std::move(mv.trin_buf)),
-	tri_pos_buf(std::move(mv.tri_pos_buf)),
-	tri_nrm_buf(std::move(mv.tri_nrm_buf)),
-	tris_count(mv.tris_count),
-	blocksize(mv.blocksize),
-	rotm(mv.rotm),
-	log_level(mv.log_level),
-	offset(mv.offset)
+Block &Block::operator=(Block &&mv)
 {
+	density_shader    = mv.density_shader;
+	mv.density_shader = nullptr;
+	trin_shader       = mv.trin_shader;
+	mv.trin_shader    = nullptr;
+	vert_shader       = mv.vert_shader;
+	mv.vert_shader    = nullptr;
+	norm_shader       = mv.norm_shader;
+	mv.norm_shader    = nullptr;
+	shader            = mv.shader;
+	mv.shader         = nullptr;
+	noiseTex1         = mv.noiseTex1;
+	mv.noiseTex1      = nullptr;
 
+	density_buf       = std::move(mv.density_buf);
+	trioff_buf        = std::move(mv.trioff_buf);
+	trin_buf          = std::move(mv.trin_buf);
+	tri_pos_buf       = std::move(mv.tri_pos_buf);
+	tri_nrm_buf       = std::move(mv.tri_nrm_buf);
+	tris_count        = mv.tris_count;
+	blocksize         = mv.blocksize;
+	rotm              = mv.rotm;
+	log_level         = mv.log_level;
+	offset            = mv.offset;
+
+	return *this;
+}
+
+Block::Block(Block &&mv)
+{
+	(*this) = std::move(mv);
 }
 
 Block::Block(int log_lvl,
@@ -35,12 +48,12 @@ Block::Block(int log_lvl,
 	         ComputeShader &norm_shader,
 	         ShaderManager &shader,
 	         Texture3D &noiseTex1) : 
-	density_shader(density_shader),
-	trin_shader(trin_shader),
-	vert_shader(vert_shader),
-	norm_shader(norm_shader),
-	shader(shader),
-	noiseTex1(noiseTex1),
+	density_shader(&density_shader),
+	trin_shader(&trin_shader),
+	vert_shader(&vert_shader),
+	norm_shader(&norm_shader),
+	shader(&shader),
+	noiseTex1(&noiseTex1),
 	blocksize(33),
 	log_level(log_lvl)
 {
@@ -68,9 +81,9 @@ void Block::mulblocksize(float am) {
 }
 
 void Block::init_shader_params() {
-	density_shader.setUniform("u_blocksize",blocksize);
-	trin_shader.setUniform("u_blocksize",blocksize);
-	vert_shader.setUniform("u_blocksize",blocksize);
+	density_shader->setUniform("u_blocksize",blocksize);
+	trin_shader->setUniform("u_blocksize",blocksize);
+	vert_shader->setUniform("u_blocksize",blocksize);
 }
 
 void Block::init_buffers() {
@@ -79,7 +92,7 @@ void Block::init_buffers() {
 	r += density_buf.setData((float*)nullptr,blocksize*blocksize*blocksize);
 	r += trioff_buf.setData((int*)nullptr,(blocksize-1)*(blocksize-1)*(blocksize-1));
 	r += trin_buf.setData((int*)nullptr,(blocksize-1)*(blocksize-1)*(blocksize-1));
-	r += density_shader.setUniform("u_noise1",noiseTex1);
+	r += density_shader->setUniform("u_noise1",noiseTex1);
 
 	if (log_level > 1) if (r) cout << "block memory allocated" << endl;
 }
@@ -92,17 +105,17 @@ void Block::checkr() {
 }
 
 void Block::calc_density() {
-	density_shader.setUniform("u_offset",offset);
-	r += density_shader.setStorageBuf(3,density_buf);
-	r += density_shader.dispatch(vec2(blocksize));
+	density_shader->setUniform("u_offset",offset);
+	r += density_shader->setStorageBuf(3,density_buf);
+	r += density_shader->dispatch(vec2(blocksize));
 
 	checkr();
 }
 
 void Block::calc_trin() {
-	r += trin_shader.setStorageBuf(3,density_buf);
-	r += trin_shader.setStorageBuf(4,trin_buf);
-	r += trin_shader.dispatch(vec2(blocksize-1));
+	r += trin_shader->setStorageBuf(3,density_buf);
+	r += trin_shader->setStorageBuf(4,trin_buf);
+	r += trin_shader->dispatch(vec2(blocksize-1));
 
 	checkr();
 }
@@ -173,6 +186,8 @@ void Block::dump_bufs() {
 }
 
 void Block::calc_trioff_cpu() {
+	if (!tris_count) return;
+
 	int *cnt = trin_buf.map<int>();
 	int *off = trioff_buf.map<int>();
 	off[0] = 0;
@@ -188,12 +203,14 @@ void Block::calc_trioff_cpu() {
 }
 
 void Block::create_tri_poses() {
+	if (!tris_count) return;
+
 	tri_pos_buf.setData<vec4>(nullptr,tris_count*3);
-	r += vert_shader.setStorageBuf(3,density_buf);
-	r += vert_shader.setStorageBuf(4,trin_buf);
-	r += vert_shader.setStorageBuf(5,trioff_buf);
-	r += vert_shader.setStorageBuf(6,tri_pos_buf);
-	r += vert_shader.dispatch(vec2(blocksize-1));
+	r += vert_shader->setStorageBuf(3,density_buf);
+	r += vert_shader->setStorageBuf(4,trin_buf);
+	r += vert_shader->setStorageBuf(5,trioff_buf);
+	r += vert_shader->setStorageBuf(6,tri_pos_buf);
+	r += vert_shader->dispatch(vec2(blocksize-1));
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
@@ -204,25 +221,27 @@ void Block::create_normals() {
 
 	int onec = pow(tris_count,.333);
 	
-	r += norm_shader.setStorageBuf(6,tri_pos_buf);
-	r += norm_shader.setStorageBuf(7,tri_nrm_buf);
-	r += norm_shader.dispatch(vec3(tris_count/onec/onec,(tris_count/onec)%onec,tris_count%onec));
+	r += norm_shader->setStorageBuf(6,tri_pos_buf);
+	r += norm_shader->setStorageBuf(7,tri_nrm_buf);
+	r += norm_shader->dispatch(vec3(tris_count/onec/onec,(tris_count/onec)%onec,tris_count%onec));
 }
 
 void Block::draw(ShaderManager &) {
+	if (!tris_count) return;
+
 	DrawData dd;
 	dd.positions.set<vec4>(tri_pos_buf);
 	dd.normals.set<vec4>(tri_nrm_buf);
 
-	shader.getModelStack().top(rotm);
+	shader->getModelStack().top(rotm);
 
-	shader.setUniform("u_offset",offset);
-	shader.draw(dd);
+	shader->setUniform("u_offset",offset);
+	shader->draw(dd);
 }
 
 void Block::rotate(vec2 d) {
-	vec3 u = shader.getCamera().u();
-	vec3 r = shader.getCamera().r();
+	vec3 u = shader->getCamera().u();
+	vec3 r = shader->getCamera().r();
 	rotm = Quat(u,-d.x/80) * Quat(r,-d.y/80) * rotm;
 }
 
@@ -234,6 +253,7 @@ Time do_log(bool log,TimeQuery &tq,string task)
 {
 	if (!log) return Time::Zero;
 
+	glFlush();
 	tq.stop();
 	Time t = tq.getTime();
 	cout << task << " calculated, took " << t.ms() << "ms" << endl;
@@ -275,4 +295,8 @@ void Block::tess() {
 		cout << "tessellation took " << alltime.ms() << "ms" << endl;
 		cout << "tris count " << tris_count << endl;
 	}
+}
+
+fm::Size Block::get_tris_count() const {
+	return tris_count;
 }

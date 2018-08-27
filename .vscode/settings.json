@@ -45,6 +45,7 @@
         "cstring": "cpp",
         "new": "cpp",
         "optional": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "future": "cpp"
     }
 }

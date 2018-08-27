@@ -21,10 +21,10 @@ Block BlockFactory::createBlock()
 }
 
 Result BlockFactory::init_textures() {
-	srand(time(0));
 
+	srand(42);
 	Color clr[16*16*16];
-	C(16*16*16) clr[i].rgb() = vec3(rand()%256,rand()%256,rand()%256);
+	C(16*16*16) clr[i].rgba() = vec4(rand()%256,rand()%256,rand()%256,rand()%256);
 
 	Result r = noiseTex1.loadFromMemory(vec3s(16),clr);
 

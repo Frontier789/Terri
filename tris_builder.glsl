@@ -31,26 +31,26 @@ vec4 lin_interp(ivec3 A,ivec3 B,float a,float b)
 	a = abs(a);
 	b = abs(b);
 
-	return vec4((A*b + B*a) / (a+b),1);
+	return vec4((A*b + B*a) / (a+b),1)/(u_blocksize-1)*2 - 1;
 }
 
 void buildTriangle(inout int base_tp,ivec3 p1,ivec3 p2,ivec3 p3,ivec3 p4,float f1,float f2,float f3,float f4)
 {
-	triposes[base_tp + 0] = lin_interp(p1,p2,f1,f2)/(u_blocksize-1)*2 - 1;
-	triposes[base_tp + 1] = lin_interp(p1,p3,f1,f3)/(u_blocksize-1)*2 - 1;
-	triposes[base_tp + 2] = lin_interp(p1,p4,f1,f4)/(u_blocksize-1)*2 - 1;
+	triposes[base_tp + 0] = lin_interp(p1,p2,f1,f2);
+	triposes[base_tp + 1] = lin_interp(p1,p3,f1,f3);
+	triposes[base_tp + 2] = lin_interp(p1,p4,f1,f4);
 
 	base_tp += 3;
 }
 
 void buildQuad(inout int base_tp,ivec3 p1,ivec3 p2,ivec3 p3,ivec3 p4,float f1,float f2,float f3,float f4)
 {
-	triposes[base_tp + 0] = lin_interp(p1,p3,f1,f3)/(u_blocksize-1)*2 - 1;
-	triposes[base_tp + 1] = lin_interp(p2,p3,f2,f3)/(u_blocksize-1)*2 - 1;
-	triposes[base_tp + 2] = lin_interp(p1,p4,f1,f4)/(u_blocksize-1)*2 - 1;
+	triposes[base_tp + 0] = lin_interp(p1,p3,f1,f3);
+	triposes[base_tp + 1] = lin_interp(p2,p3,f2,f3);
+	triposes[base_tp + 2] = lin_interp(p1,p4,f1,f4);
 	triposes[base_tp + 3] = triposes[base_tp + 2];
 	triposes[base_tp + 4] = triposes[base_tp + 1];
-	triposes[base_tp + 5] = lin_interp(p2,p4,f2,f4)/(u_blocksize-1)*2 - 1;
+	triposes[base_tp + 5] = lin_interp(p2,p4,f2,f4);
 
 	base_tp += 6;
 }
